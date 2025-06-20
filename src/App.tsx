@@ -1,24 +1,47 @@
 import React, { useState, useRef, useEffect } from "react";
+import { io, Socket } from "socket.io-client";
 import "./App.css";
+
+const socket: Socket = io("http://localhost:3000"); // Cambia si tu backend está en otro host/puerto
 
 function App() {
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const sectionRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim() === "") return;
-    setMessages((prev) => [...prev, input]);
-    setInput("");
-  };
+  useEffect(() => {
+    socket.on("connect", () => {
+      console.log("Conectado al servidor con ID:", socket.id);
+    });
+
+    socket.on("chat_message", (msg: string) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    socket.on("error_message", (msg: string) => {
+      console.error("Error recibido:", msg);
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("chat_message");
+      socket.off("error_message");
+    };
+  }, []);
 
   useEffect(() => {
-    // Scroll al último mensaje
     if (sectionRef.current) {
       sectionRef.current.scrollTop = sectionRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim() === "") return;
+
+    socket.emit("chat_message", input);
+    setInput("");
+  };
 
   return (
     <div className="app-container">
@@ -26,47 +49,37 @@ function App() {
         <h1>Chat Application</h1>
         <p>Welcome to the chat application!</p>
       </header>
+
       <main className="chat-container">
         <section ref={sectionRef}>
           {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className="chat-message"
-              style={{
-                background: idx % 2 === 0 ? "#1e3c72" : "#2a5298",
-                color: "aliceblue",
-                padding: "10px",
-                borderRadius: "6px",
-                marginBottom: "8px",
-                maxWidth: "90%",
-                alignSelf: "flex-start",
-              }}
-            >
+            <div key={idx} className="chat-message">
               {msg}
             </div>
           ))}
         </section>
+
         <footer>
-          <form className="chat-form" onSubmit={handleSubmit} style={{ width: "100%" }}>
+          <form className="chat-form" onSubmit={handleSubmit}>
             <input
               type="text"
               placeholder="Type your message here..."
               className="chat-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              style={{ width: "80%" }}
             />
-            <button type="submit" className="chat-submit" style={{ width: "20%" }}>
+            <button type="submit" className="chat-submit">
               Send
             </button>
           </form>
         </footer>
       </main>
+
       <footer className="app-footer">
-        <p>2025 Aplicacion de Chat. Todos los derechos reservados.</p>
+        <p>2025 Aplicación de Chat. Todos los derechos reservados.</p>
         <p>Desarrollado por <strong>Jemerson Rodriguez</strong></p>
         <p>
-          Contact: <a href="mailto:">jemerson0095@gmail.com</a>
+          Contacto: <a href="mailto:jemerson0095@gmail.com">jemerson0095@gmail.com</a>
         </p>
       </footer>
     </div>
